@@ -72,12 +72,18 @@ function startWebhookServer() {
         embed.setDescription('No streams scheduled at this time.');
       } else {
         const scheduleLines = streams.map(stream => {
-          const date = stream.date || 'TBD';
-          const time = stream.time || '';
           const title = stream.title || 'Untitled Stream';
           const description = stream.description || '';
 
-          let line = `**${date}** ${time ? `at ${time}` : ''}\n${title}`;
+          let line = '';
+          if (stream.startTime) {
+            const startDate = new Date(stream.startTime);
+            const displayTime = `<t:${Math.floor(startDate.getTime() / 1000)}:F>`;
+            line = `${displayTime}\n**${title}**`;
+          } else {
+            line = `**${title}**`;
+          }
+
           if (description) {
             line += `\n*${description}*`;
           }
