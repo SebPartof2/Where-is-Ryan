@@ -1,0 +1,16 @@
+{
+  "name": "where-is-ryan",
+  "version": "1.0.0",
+  "description": "Discord bot to track a VATSIM pilot's current flight",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "register": "node src/register-commands.js"
+  },
+  "keywords": ["discord", "vatsim", "tracker"],
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1"
+  }
+}
