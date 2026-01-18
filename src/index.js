@@ -1,5 +1,6 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const express = require('express');
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds]
@@ -7,10 +8,105 @@ const client = new Client({
 
 const VATSIM_DATA_URL = 'https://data.vatsim.net/v3/vatsim-data.json';
 const VATSIM_CID = process.env.VATSIM_CID;
+const SCHEDULE_CHANNEL_ID = process.env.SCHEDULE_CHANNEL_ID;
+const WEBHOOK_API_KEY = process.env.WEBHOOK_API_KEY;
+const WEBHOOK_PORT = process.env.WEBHOOK_PORT || 4509;
+
+// Store schedule message IDs for cleanup
+let scheduleMessageIds = [];
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
+  startWebhookServer();
 });
+
+// Webhook server for schedule updates
+function startWebhookServer() {
+  const app = express();
+  app.use(express.json());
+
+  app.post('/schedule', async (req, res) => {
+    // Verify API key
+    const apiKey = req.headers['x-api-key'];
+    if (apiKey !== WEBHOOK_API_KEY) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { streams } = req.body;
+
+    if (!streams || !Array.isArray(streams)) {
+      return res.status(400).json({ error: 'Invalid payload. Expected { streams: [...] }' });
+    }
+
+    try {
+      const channel = await client.channels.fetch(SCHEDULE_CHANNEL_ID);
+      if (!channel) {
+        return res.status(404).json({ error: 'Schedule channel not found' });
+      }
+
+      // Clear old schedule messages
+      if (scheduleMessageIds.length > 0) {
+        try {
+          await channel.bulkDelete(scheduleMessageIds);
+        } catch (err) {
+          // Messages might be too old for bulk delete, try individual delete
+          for (const msgId of scheduleMessageIds) {
+            try {
+              const msg = await channel.messages.fetch(msgId);
+              await msg.delete();
+            } catch (e) {
+              // Message might already be deleted
+            }
+          }
+        }
+        scheduleMessageIds = [];
+      }
+
+      // Create schedule embed
+      const embed = new EmbedBuilder()
+        .setColor(0x9146ff)
+        .setTitle('Stream Schedule')
+        .setTimestamp();
+
+      if (streams.length === 0) {
+        embed.setDescription('No streams scheduled at this time.');
+      } else {
+        const scheduleLines = streams.map(stream => {
+          const date = stream.date || 'TBD';
+          const time = stream.time || '';
+          const title = stream.title || 'Untitled Stream';
+          const description = stream.description || '';
+
+          let line = `**${date}** ${time ? `at ${time}` : ''}\n${title}`;
+          if (description) {
+            line += `\n*${description}*`;
+          }
+          return line;
+        });
+
+        embed.setDescription(scheduleLines.join('\n\n'));
+      }
+
+      const message = await channel.send({ embeds: [embed] });
+      scheduleMessageIds.push(message.id);
+
+      console.log('Schedule updated successfully');
+      res.json({ success: true, messageId: message.id });
+
+    } catch (error) {
+      console.error('Error posting schedule:', error);
+      res.status(500).json({ error: 'Failed to post schedule' });
+    }
+  });
+
+  app.get('/health', (req, res) => {
+    res.json({ status: 'ok', bot: client.user?.tag });
+  });
+
+  app.listen(WEBHOOK_PORT, () => {
+    console.log(`Webhook server listening on port ${WEBHOOK_PORT}`);
+  });
+}
 
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
@@ -143,6 +239,14 @@ if (!process.env.DISCORD_TOKEN) {
 if (!VATSIM_CID) {
   console.error('Missing VATSIM_CID in environment variables');
   process.exit(1);
+}
+
+if (!SCHEDULE_CHANNEL_ID) {
+  console.warn('Warning: SCHEDULE_CHANNEL_ID not set. Schedule webhook will not work.');
+}
+
+if (!WEBHOOK_API_KEY) {
+  console.warn('Warning: WEBHOOK_API_KEY not set. Schedule webhook will not work.');
 }
 
 client.login(process.env.DISCORD_TOKEN);
