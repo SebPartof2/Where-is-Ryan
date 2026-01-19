@@ -1,5 +1,5 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const express = require('express');
 const yaml = require('js-yaml');
 const fs = require('fs');
@@ -263,10 +263,16 @@ async function autoSyncAllMembers() {
 
       for (const member of allMembers.values()) {
         try {
+          // Delay before each API call to avoid VATSIM rate limiting (429 errors)
+          await new Promise(resolve => setTimeout(resolve, 1500));
+
           const cid = await getVatsimCidFromDiscord(member.user.id);
           if (!cid) continue; // Not linked to VATSIM, skip
 
           const wasVerified = member.roles.cache.has(roleConfig.verified_role);
+
+          // Additional delay before fetching member data
+          await new Promise(resolve => setTimeout(resolve, 1000));
 
           const [memberData, pilotStats] = await Promise.all([
             getVatsimMemberData(cid),
@@ -280,9 +286,6 @@ async function autoSyncAllMembers() {
             console.log(`Auto-verified: ${member.user.tag} (CID: ${cid})`);
           }
           synced++;
-
-          // Small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 500));
         } catch (e) {
           errors++;
           console.error(`Error syncing member ${member.user.tag}:`, e.message);
@@ -604,7 +607,7 @@ client.on('interactionCreate', async (interaction) => {
 
   // Verify command - link Discord to VATSIM
   if (interaction.commandName === 'verify') {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       // Get VATSIM CID from Discord ID
@@ -674,7 +677,7 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       const embed = new EmbedBuilder()
@@ -698,7 +701,7 @@ client.on('interactionCreate', async (interaction) => {
 
   // Sync roles command - re-sync VATSIM roles
   if (interaction.commandName === 'syncroles') {
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       // Get VATSIM CID from Discord ID
