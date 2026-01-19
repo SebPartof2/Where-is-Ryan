@@ -1,0 +1,57 @@
+# VATSIM Auto-Role Configuration
+# Role IDs can be found by right-clicking a role in Discord (Developer Mode must be enabled)
+
+# ATC Rating Roles
+# Maps VATSIM ATC rating IDs to Discord role IDs
+# Rating IDs: 1=OBS, 2=S1, 3=S2, 4=S3, 5=C1, 6=C2, 7=C3, 8=I1, 9=I2, 10=I3, 11=SUP, 12=ADM
+atc_roles:
+  1: ""   # OBS - Observer
+  2: ""   # S1 - Student 1
+  3: ""   # S2 - Student 2
+  4: ""   # S3 - Student 3
+  5: ""   # C1 - Controller 1
+  6: ""   # C2 - Controller 2
+  7: ""   # C3 - Controller 3
+  8: ""   # I1 - Instructor 1
+  9: ""   # I2 - Instructor 2
+  10: ""  # I3 - Instructor 3
+  11: ""  # SUP - Supervisor
+  12: ""  # ADM - Administrator
+
+# Pilot Rating Roles
+# Maps VATSIM pilot rating IDs to Discord role IDs
+# Rating IDs: 0=NEW, 1=PPL, 3=IR, 7=CMEL, 15=ATPL
+pilot_rating_roles:
+  0: ""   # NEW - New Member
+  1: ""   # PPL - Private Pilot License
+  3: ""   # IR - Instrument Rating
+  7: ""   # CMEL - Commercial Multi-Engine License
+  15: ""  # ATPL - Airline Transport Pilot License
+
+# Pilot Hour Roles
+# Assigns roles based on total pilot hours
+# Format: minimum_hours: role_id
+# Roles are assigned cumulatively (higher hour roles include lower)
+pilot_hour_roles:
+  0: ""      # New Pilot (0+ hours)
+  250: ""     # Intermediate Pilot (250+ hours)
+  1000: ""     # Experienced Pilot (1000+ hours)
+
+# Verified Member Role
+# Assigned to all users who successfully link their VATSIM account
+verified_role: ""
+
+# Default ATC Role
+# Assigned to all users with ATC rating > 1 (not just OBS)
+default_atc_role: ""
+
+# Settings
+settings:
+  # Remove old hour roles when assigning new ones (only keep highest)
+  remove_lower_hour_roles: true
+  # Remove old ATC rating roles when assigning new ones (only keep current)
+  remove_old_atc_roles: true
+  # Remove old pilot rating roles when assigning new ones
+  remove_old_pilot_rating_roles: true
+  # Auto-sync interval in minutes (0 to disable)
+  auto_sync_interval: 5

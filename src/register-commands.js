@@ -5,6 +5,14 @@ const commands = [
   new SlashCommandBuilder()
     .setName('whereisryan')
     .setDescription('Check where Ryan is currently flying on VATSIM')
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('verify')
+    .setDescription('Link your Discord account to VATSIM and get roles based on your ratings')
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('syncroles')
+    .setDescription('Re-sync your VATSIM roles (if already verified)')
     .toJSON()
 ];
 
