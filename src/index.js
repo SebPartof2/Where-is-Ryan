@@ -94,6 +94,10 @@ async function assignVatsimRoles(member, cid, memberData, pilotStats) {
   const rolesRemoved = [];
   const settings = roleConfig.settings || {};
 
+  console.log(`Assigning roles for ${member.user.tag} (CID: ${cid})`);
+  console.log(`  ATC Rating: ${memberData.rating}, Pilot Rating: ${memberData.pilotrating}`);
+  console.log(`  Pilot Hours: ${pilotStats?.pilot ? (pilotStats.pilot / 60).toFixed(1) : 0}`);
+
   // Assign verified role
   if (roleConfig.verified_role) {
     try {
@@ -121,7 +125,9 @@ async function assignVatsimRoles(member, cid, memberData, pilotStats) {
       }
     }
 
-    const atcRoleId = roleConfig.atc_roles[atcRating];
+    // Use String() to handle YAML numeric keys
+    const atcRoleId = roleConfig.atc_roles[String(atcRating)] || roleConfig.atc_roles[atcRating];
+    console.log(`  Looking for ATC role for rating ${atcRating}: ${atcRoleId || 'not configured'}`);
     if (atcRoleId) {
       try {
         await member.roles.add(atcRoleId);
@@ -171,7 +177,9 @@ async function assignVatsimRoles(member, cid, memberData, pilotStats) {
       }
     }
 
-    const pilotRatingRoleId = roleConfig.pilot_rating_roles[pilotRating];
+    // Use String() to handle YAML numeric keys
+    const pilotRatingRoleId = roleConfig.pilot_rating_roles[String(pilotRating)] || roleConfig.pilot_rating_roles[pilotRating];
+    console.log(`  Looking for pilot rating role for ${pilotRating}: ${pilotRatingRoleId || 'not configured'}`);
     if (pilotRatingRoleId) {
       try {
         await member.roles.add(pilotRatingRoleId);
@@ -198,6 +206,8 @@ async function assignVatsimRoles(member, cid, memberData, pilotStats) {
       }
     }
 
+    console.log(`  Qualified hour threshold: ${qualifiedThreshold} (${totalHours.toFixed(1)} hours)`);
+
     // Remove lower hour roles if configured
     if (settings.remove_lower_hour_roles) {
       for (const [hours, roleId] of Object.entries(roleConfig.pilot_hour_roles)) {
@@ -215,7 +225,9 @@ async function assignVatsimRoles(member, cid, memberData, pilotStats) {
 
     // Add qualified role
     if (qualifiedThreshold !== null) {
-      const hourRoleId = roleConfig.pilot_hour_roles[qualifiedThreshold];
+      // Use String() to handle YAML numeric keys
+      const hourRoleId = roleConfig.pilot_hour_roles[String(qualifiedThreshold)] || roleConfig.pilot_hour_roles[qualifiedThreshold];
+      console.log(`  Looking for hour role for ${qualifiedThreshold}+ hrs: ${hourRoleId || 'not configured'}`);
       if (hourRoleId) {
         try {
           await member.roles.add(hourRoleId);
