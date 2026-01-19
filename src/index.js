@@ -9,11 +9,13 @@ const client = new Client({
 const VATSIM_DATA_URL = 'https://data.vatsim.net/v3/vatsim-data.json';
 const VATSIM_CID = process.env.VATSIM_CID;
 const SCHEDULE_CHANNEL_ID = process.env.SCHEDULE_CHANNEL_ID;
+const RULES_CHANNEL_ID = process.env.RULES_CHANNEL_ID;
 const WEBHOOK_API_KEY = process.env.WEBHOOK_API_KEY;
 const WEBHOOK_PORT = process.env.WEBHOOK_PORT || 4509;
 
-// Store schedule message IDs for cleanup
+// Store message IDs for cleanup
 let scheduleMessageIds = [];
+let rulesMessageIds = [];
 
 client.once('ready', () => {
   console.log(`Logged in as ${client.user.tag}`);
@@ -102,6 +104,78 @@ function startWebhookServer() {
     } catch (error) {
       console.error('Error posting schedule:', error);
       res.status(500).json({ error: 'Failed to post schedule' });
+    }
+  });
+
+  app.post('/rules', async (req, res) => {
+    // Verify API key
+    const apiKey = req.headers['x-api-key'];
+    if (apiKey !== WEBHOOK_API_KEY) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const { title, rules, color, footer } = req.body;
+
+    if (!rules || !Array.isArray(rules)) {
+      return res.status(400).json({ error: 'Invalid payload. Expected { rules: [...] }' });
+    }
+
+    try {
+      const channel = await client.channels.fetch(RULES_CHANNEL_ID);
+      if (!channel) {
+        return res.status(404).json({ error: 'Rules channel not found' });
+      }
+
+      // Clear old rules messages
+      if (rulesMessageIds.length > 0) {
+        try {
+          await channel.bulkDelete(rulesMessageIds);
+        } catch (err) {
+          for (const msgId of rulesMessageIds) {
+            try {
+              const msg = await channel.messages.fetch(msgId);
+              await msg.delete();
+            } catch (e) {
+              // Message might already be deleted
+            }
+          }
+        }
+        rulesMessageIds = [];
+      }
+
+      // Create rules embed
+      const embed = new EmbedBuilder()
+        .setColor(color || 0xff5555)
+        .setTitle(title || 'Server Rules')
+        .setTimestamp();
+
+      const rulesText = rules.map((rule, index) => {
+        if (typeof rule === 'string') {
+          return `**${index + 1}.** ${rule}`;
+        }
+        // Support object format with title and description
+        let line = `**${index + 1}. ${rule.title || 'Rule'}**`;
+        if (rule.description) {
+          line += `\n${rule.description}`;
+        }
+        return line;
+      }).join('\n\n');
+
+      embed.setDescription(rulesText);
+
+      if (footer) {
+        embed.setFooter({ text: footer });
+      }
+
+      const message = await channel.send({ embeds: [embed] });
+      rulesMessageIds.push(message.id);
+
+      console.log('Rules updated successfully');
+      res.json({ success: true, messageId: message.id });
+
+    } catch (error) {
+      console.error('Error posting rules:', error);
+      res.status(500).json({ error: 'Failed to post rules' });
     }
   });
 
