@@ -666,6 +666,36 @@ client.on('interactionCreate', async (interaction) => {
     }
   }
 
+  // Force sync command - admin only, triggers full sync
+  if (interaction.commandName === 'forcesync') {
+    // Check admin permission
+    if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+      await interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
+      return;
+    }
+
+    await interaction.deferReply({ ephemeral: true });
+
+    try {
+      const embed = new EmbedBuilder()
+        .setColor(0x3498db)
+        .setTitle('Force Sync Started')
+        .setDescription('Syncing all member roles... This may take a while.')
+        .setTimestamp();
+
+      await interaction.editReply({ embeds: [embed] });
+
+      // Run the sync in the background
+      autoSyncAllMembers().then(() => {
+        console.log('Force sync completed');
+      });
+
+    } catch (error) {
+      console.error('Error in forcesync command:', error);
+      await interaction.editReply({ content: 'An error occurred while starting the sync.' });
+    }
+  }
+
   // Sync roles command - re-sync VATSIM roles
   if (interaction.commandName === 'syncroles') {
     await interaction.deferReply({ ephemeral: true });

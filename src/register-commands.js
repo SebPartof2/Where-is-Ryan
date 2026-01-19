@@ -1,6 +1,8 @@
 require('dotenv').config();
 const { REST, Routes, SlashCommandBuilder } = require('discord.js');
 
+const { PermissionFlagsBits } = require('discord.js');
+
 const commands = [
   new SlashCommandBuilder()
     .setName('whereisryan')
@@ -13,6 +15,11 @@ const commands = [
   new SlashCommandBuilder()
     .setName('syncroles')
     .setDescription('Re-sync your VATSIM roles (if already verified)')
+    .toJSON(),
+  new SlashCommandBuilder()
+    .setName('forcesync')
+    .setDescription('Force sync all member roles (Admin only)')
+    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .toJSON()
 ];
 
