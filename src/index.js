@@ -230,7 +230,7 @@ async function assignVatsimRoles(member, cid, memberData, pilotStats) {
   return { rolesAdded, rolesRemoved, totalHours: pilotStats ? (pilotStats.pilot || 0) / 60 : 0 };
 }
 
-// Auto-sync roles for all verified members
+// Auto-sync roles for all members (attempts to verify unverified members too)
 async function autoSyncAllMembers() {
   const settings = roleConfig.settings || {};
   if (!roleConfig.verified_role) {
@@ -238,22 +238,23 @@ async function autoSyncAllMembers() {
     return;
   }
 
-  console.log('Starting auto-sync of all verified members...');
+  console.log('Starting auto-sync of all members...');
   let synced = 0;
+  let newlyVerified = 0;
   let errors = 0;
 
   for (const guild of client.guilds.cache.values()) {
     try {
-      // Fetch all members with the verified role
+      // Fetch all members (excluding bots)
       await guild.members.fetch();
-      const verifiedMembers = guild.members.cache.filter(m =>
-        m.roles.cache.has(roleConfig.verified_role)
-      );
+      const allMembers = guild.members.cache.filter(m => !m.user.bot);
 
-      for (const member of verifiedMembers.values()) {
+      for (const member of allMembers.values()) {
         try {
           const cid = await getVatsimCidFromDiscord(member.user.id);
-          if (!cid) continue;
+          if (!cid) continue; // Not linked to VATSIM, skip
+
+          const wasVerified = member.roles.cache.has(roleConfig.verified_role);
 
           const [memberData, pilotStats] = await Promise.all([
             getVatsimMemberData(cid),
@@ -261,6 +262,11 @@ async function autoSyncAllMembers() {
           ]);
 
           await assignVatsimRoles(member, cid, memberData, pilotStats);
+
+          if (!wasVerified) {
+            newlyVerified++;
+            console.log(`Auto-verified: ${member.user.tag} (CID: ${cid})`);
+          }
           synced++;
 
           // Small delay to avoid rate limiting
@@ -275,7 +281,7 @@ async function autoSyncAllMembers() {
     }
   }
 
-  console.log(`Auto-sync complete: ${synced} members synced, ${errors} errors`);
+  console.log(`Auto-sync complete: ${synced} members synced, ${newlyVerified} newly verified, ${errors} errors`);
 }
 
 function startAutoSync() {
