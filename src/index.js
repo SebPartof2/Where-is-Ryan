@@ -96,15 +96,21 @@ async function assignVatsimRoles(member, cid, memberData, pilotStats) {
 
   console.log(`Assigning roles for ${member.user.tag} (CID: ${cid})`);
   console.log(`  ATC Rating: ${memberData.rating}, Pilot Rating: ${memberData.pilotrating}`);
-  console.log(`  Pilot Hours: ${pilotStats?.pilot ? (pilotStats.pilot / 60).toFixed(1) : 0}`);
+  console.log(`  Pilot Stats Response:`, JSON.stringify(pilotStats));
+
+  // VATSIM stats API returns time in hours (as a float)
+  const pilotHours = pilotStats?.pilot || 0;
+  console.log(`  Pilot Hours: ${pilotHours}`);
 
   // Assign verified role
   if (roleConfig.verified_role) {
     try {
+      console.log(`  Adding verified role: ${roleConfig.verified_role}`);
       await member.roles.add(roleConfig.verified_role);
       rolesAdded.push('Verified');
+      console.log(`  Verified role added successfully`);
     } catch (e) {
-      console.error('Error adding verified role:', e);
+      console.error('Error adding verified role:', e.message);
     }
   }
 
@@ -191,8 +197,8 @@ async function assignVatsimRoles(member, cid, memberData, pilotStats) {
   }
 
   // Assign pilot hour roles
-  if (roleConfig.pilot_hour_roles && pilotStats) {
-    const totalHours = (pilotStats.pilot || 0) / 60; // Convert minutes to hours
+  if (roleConfig.pilot_hour_roles) {
+    const totalHours = pilotHours; // Already in hours from VATSIM API
     const hourThresholds = Object.keys(roleConfig.pilot_hour_roles)
       .map(Number)
       .sort((a, b) => b - a); // Sort descending
@@ -230,16 +236,20 @@ async function assignVatsimRoles(member, cid, memberData, pilotStats) {
       console.log(`  Looking for hour role for ${qualifiedThreshold}+ hrs: ${hourRoleId || 'not configured'}`);
       if (hourRoleId) {
         try {
+          console.log(`  Adding pilot hour role: ${hourRoleId}`);
           await member.roles.add(hourRoleId);
           rolesAdded.push(`${qualifiedThreshold}+ hrs`);
+          console.log(`  Pilot hour role added successfully`);
         } catch (e) {
-          console.error('Error adding hour role:', e);
+          console.error('Error adding hour role:', e.message);
         }
       }
+    } else {
+      console.log(`  No qualified hour threshold found (totalHours: ${totalHours})`);
     }
   }
 
-  return { rolesAdded, rolesRemoved, totalHours: pilotStats ? (pilotStats.pilot || 0) / 60 : 0 };
+  return { rolesAdded, rolesRemoved, totalHours: pilotHours };
 }
 
 // Auto-sync roles for all members (attempts to verify unverified members too)
